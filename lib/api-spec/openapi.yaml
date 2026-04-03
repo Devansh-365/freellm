@@ -1,0 +1,422 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: FreeLLM Gateway API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: gateway
+    description: OpenAI-compatible LLM gateway
+  - name: status
+    description: Gateway status and metrics
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /v1/models:
+    get:
+      operationId: listModels
+      tags: [gateway]
+      summary: List available models
+      description: Returns all models available across configured providers
+      responses:
+        "200":
+          description: Model list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelsResponse"
+
+  /v1/chat/completions:
+    post:
+      operationId: createChatCompletion
+      tags: [gateway]
+      summary: Create chat completion
+      description: OpenAI-compatible chat completion endpoint with automatic provider failover
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+      responses:
+        "200":
+          description: Chat completion response (or SSE stream when stream=true)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+        "429":
+          description: All providers exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatewayError"
+        "500":
+          description: Gateway error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatewayError"
+
+  /v1/status:
+    get:
+      operationId: getGatewayStatus
+      tags: [status]
+      summary: Gateway status
+      description: Returns provider health, circuit breaker states, and request metrics
+      responses:
+        "200":
+          description: Gateway status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatewayStatus"
+
+  /v1/status/providers/{providerId}/reset:
+    post:
+      operationId: resetProviderCircuitBreaker
+      tags: [status]
+      summary: Reset circuit breaker
+      description: Manually reset a provider's circuit breaker to closed state
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Circuit breaker reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderStatus"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatewayError"
+
+  /v1/status/routing:
+    patch:
+      operationId: updateRoutingStrategy
+      tags: [status]
+      summary: Update routing strategy
+      description: Change the routing strategy used for provider selection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoutingStrategyRequest"
+      responses:
+        "200":
+          description: Strategy updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GatewayStatus"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+      required:
+        - role
+        - content
+
+    ChatCompletionRequest:
+      type: object
+      properties:
+        model:
+          type: string
+          description: Model name. Use a provider-specific model ID or a meta-model like "free-fast" or "free-smart".
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        stream:
+          type: boolean
+          default: false
+          nullable: true
+        temperature:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 2
+        max_tokens:
+          type: integer
+          nullable: true
+          minimum: 1
+        top_p:
+          type: number
+          nullable: true
+        stop:
+          nullable: true
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+      required:
+        - model
+        - messages
+
+    ChatCompletionChoice:
+      type: object
+      properties:
+        index:
+          type: integer
+        message:
+          $ref: "#/components/schemas/ChatMessage"
+        finish_reason:
+          type: string
+          nullable: true
+      required:
+        - index
+        - message
+        - finish_reason
+
+    ChatCompletionUsage:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+      required:
+        - prompt_tokens
+        - completion_tokens
+        - total_tokens
+
+    ChatCompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        created:
+          type: integer
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatCompletionChoice"
+        usage:
+          $ref: "#/components/schemas/ChatCompletionUsage"
+        x_freellm_provider:
+          type: string
+          description: The provider that handled this request
+      required:
+        - id
+        - object
+        - created
+        - model
+        - choices
+
+    ModelObject:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        created:
+          type: integer
+        owned_by:
+          type: string
+        provider:
+          type: string
+          description: Which provider serves this model
+      required:
+        - id
+        - object
+        - created
+        - owned_by
+        - provider
+
+    ModelsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelObject"
+      required:
+        - object
+        - data
+
+    CircuitBreakerState:
+      type: string
+      enum: [closed, open, half_open]
+
+    ProviderStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        enabled:
+          type: boolean
+        circuitBreakerState:
+          $ref: "#/components/schemas/CircuitBreakerState"
+        totalRequests:
+          type: integer
+        successRequests:
+          type: integer
+        failedRequests:
+          type: integer
+        rateLimitedRequests:
+          type: integer
+        lastError:
+          type: string
+          nullable: true
+        lastUsedAt:
+          type: string
+          nullable: true
+        models:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - enabled
+        - circuitBreakerState
+        - totalRequests
+        - successRequests
+        - failedRequests
+        - rateLimitedRequests
+        - models
+
+    RequestLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        requestedModel:
+          type: string
+        resolvedModel:
+          type: string
+          nullable: true
+        provider:
+          type: string
+          nullable: true
+        latencyMs:
+          type: integer
+        status:
+          type: string
+          enum: [success, error, rate_limited, all_providers_failed]
+        error:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+        streaming:
+          type: boolean
+      required:
+        - id
+        - requestedModel
+        - latencyMs
+        - status
+        - timestamp
+        - streaming
+
+    GatewayStatus:
+      type: object
+      properties:
+        routingStrategy:
+          type: string
+          enum: [round_robin, random]
+        totalRequests:
+          type: integer
+        successRequests:
+          type: integer
+        failedRequests:
+          type: integer
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderStatus"
+        recentRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/RequestLogEntry"
+      required:
+        - routingStrategy
+        - totalRequests
+        - successRequests
+        - failedRequests
+        - providers
+        - recentRequests
+
+    UpdateRoutingStrategyRequest:
+      type: object
+      properties:
+        strategy:
+          type: string
+          enum: [round_robin, random]
+      required:
+        - strategy
+
+    GatewayError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            type:
+              type: string
+            code:
+              type: string
+              nullable: true
+          required:
+            - message
+            - type
+      required:
+        - error
