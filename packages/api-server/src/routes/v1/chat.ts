@@ -3,21 +3,13 @@ import type { Request, Response, NextFunction } from "express";
 import { router as gatewayRouter, AllProvidersExhaustedError, ProviderClientError } from "../../gateway/index.js";
 import { logger } from "../../lib/logger.js";
 import type { ChatCompletionRequest } from "../../gateway/types.js";
+import { validate } from "../../middleware/validate.js";
+import { chatCompletionRequestSchema } from "../../gateway/schemas.js";
 
 const chatRouter = Router();
 
-chatRouter.post("/completions", async (req: Request, res: Response, next: NextFunction) => {
+chatRouter.post("/completions", validate(chatCompletionRequestSchema), async (req: Request, res: Response, next: NextFunction) => {
   const body = req.body as ChatCompletionRequest;
-
-  if (!body.model || !body.messages || !Array.isArray(body.messages)) {
-    res.status(400).json({
-      error: {
-        message: "Invalid request: model and messages are required",
-        type: "invalid_request_error",
-      },
-    });
-    return;
-  }
 
   if (body.stream) {
     await handleStreamingRequest(req, res, body);

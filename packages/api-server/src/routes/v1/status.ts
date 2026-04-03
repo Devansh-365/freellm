@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
 import { registry, router as gatewayRouter } from "../../gateway/index.js";
 import type { RoutingStrategy } from "../../gateway/types.js";
+import { validate } from "../../middleware/validate.js";
+import { updateRoutingSchema } from "../../gateway/schemas.js";
 
 const statusRouter: IRouter = Router();
 
@@ -50,18 +52,8 @@ statusRouter.post("/providers/:providerId/reset", (req, res) => {
   });
 });
 
-statusRouter.patch("/routing", (req, res) => {
+statusRouter.patch("/routing", validate(updateRoutingSchema), (req, res) => {
   const { strategy } = req.body as { strategy: RoutingStrategy };
-
-  if (strategy !== "round_robin" && strategy !== "random") {
-    res.status(400).json({
-      error: {
-        message: 'Invalid strategy. Must be "round_robin" or "random".',
-        type: "invalid_request_error",
-      },
-    });
-    return;
-  }
 
   gatewayRouter.strategy = strategy;
   const stats = gatewayRouter.requestLog.getStats();
