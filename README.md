@@ -47,10 +47,10 @@ Your request goes to the fastest available provider. If that provider is rate-li
 
 | Provider | Models | Free Tier | Why It's Here |
 |----------|--------|-----------|---------------|
-| **Groq** | Llama 3.3 70B, Llama 3.1 8B, Gemma2, Mixtral | ~30 req/min | Fastest inference available |
-| **Gemini** | Gemini 2.0 Flash, 1.5 Flash, 1.5 Pro | ~15 req/min | Most capable free models |
-| **Mistral** | Mistral Small | ~5 req/min | Strong reasoning at low cost |
-| **Cerebras** | Llama 3.3 70B | ~30 req/min | High-throughput inference |
+| **Groq** | Llama 3.3 70B, Llama 3.1 8B, Llama 4 Scout, Qwen3 32B | ~30 req/min | Fastest inference available |
+| **Gemini** | Gemini 2.5 Flash, 2.5 Pro, 2.0 Flash, 2.0 Flash Lite | ~15 req/min | Most capable free models |
+| **Mistral** | Mistral Small, Mistral Medium, Mistral Nemo | ~5 req/min | Strong reasoning at low cost |
+| **Cerebras** | Llama 3.1 8B, Qwen3 235B, GPT-OSS 120B | ~30 req/min | High-throughput inference |
 | **Ollama** | Any local model | Unlimited | Your hardware, your rules |
 
 **Combined free capacity: ~80 requests/minute** across all cloud providers -- enough for prototyping, internal tools, and side projects.
