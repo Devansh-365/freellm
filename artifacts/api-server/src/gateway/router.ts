@@ -13,8 +13,17 @@ const DEFAULT_MODELS: Record<string, string> = {
   "ollama": "llama3",
 };
 
+// 4xx status codes that indicate a client-side or configuration error.
+// These should NOT trigger failover to another provider — failing over would
+// just repeat the same error on a different endpoint.
+const NON_RETRIABLE_STATUSES = new Set([400, 401, 403, 404]);
+
 export class GatewayRouter {
-  private roundRobinIndex = 0;
+  // Round-robin index for explicit (non-meta) model requests
+  private rrIndex = 0;
+  // Per-meta-model round-robin indices for true rotation across providers
+  private metaRrIndices = new Map<string, number>();
+
   public strategy: RoutingStrategy = "round_robin";
   public requestLog: RequestLog;
 
@@ -26,17 +35,19 @@ export class GatewayRouter {
     modelId: string,
     excluded: Set<string>,
   ): ProviderAdapter | undefined {
-    const isMeta = META_MODELS.has(modelId);
-
-    if (isMeta) {
-      return this.registry.getProviderForMetaModel(modelId, excluded, this.strategy);
+    if (META_MODELS.has(modelId)) {
+      return this.registry.getProviderForMetaModel(
+        modelId,
+        excluded,
+        this.strategy,
+        this.getMetaRrIndex(modelId),
+        (next) => this.setMetaRrIndex(modelId, next),
+      );
     }
 
     const available = this.registry
       .getAvailable()
-      .filter(
-        (p) => !excluded.has(p.id) && p.models.some((m) => m.id === modelId),
-      );
+      .filter((p) => !excluded.has(p.id) && p.models.some((m) => m.id === modelId));
 
     if (available.length === 0) return undefined;
 
@@ -44,9 +55,18 @@ export class GatewayRouter {
       return available[Math.floor(Math.random() * available.length)];
     }
 
-    const idx = this.roundRobinIndex % available.length;
-    this.roundRobinIndex = (this.roundRobinIndex + 1) % 10000;
+    // round_robin
+    const idx = this.rrIndex % available.length;
+    this.rrIndex = (this.rrIndex + 1) % 1_000_000;
     return available[idx];
+  }
+
+  private getMetaRrIndex(metaModel: string): number {
+    return this.metaRrIndices.get(metaModel) ?? 0;
+  }
+
+  private setMetaRrIndex(metaModel: string, next: number): void {
+    this.metaRrIndices.set(metaModel, next % 1_000_000);
   }
 
   private resolveModelForProvider(
@@ -57,8 +77,7 @@ export class GatewayRouter {
       const defaultModel = DEFAULT_MODELS[provider.id];
       if (defaultModel) {
         const prefixed = `${provider.id}/${defaultModel}`;
-        const map = provider.models.find((m) => m.id === prefixed);
-        if (map) return prefixed;
+        if (provider.models.some((m) => m.id === prefixed)) return prefixed;
       }
       const first = provider.models[0];
       return first ? first.id : requestedModel;
@@ -72,7 +91,6 @@ export class GatewayRouter {
     resolvedModel: string;
   }> {
     const excluded = new Set<string>();
-    const isStreaming = !!request.stream;
 
     while (true) {
       const provider = this.pickProvider(request.model, excluded);
@@ -97,6 +115,11 @@ export class GatewayRouter {
           continue;
         }
 
+        if (NON_RETRIABLE_STATUSES.has(response.status)) {
+          // Client-side / auth / model-not-found errors — surface directly
+          throw new ProviderClientError(provider.id, response.status, response);
+        }
+
         if (response.status >= 500) {
           provider.onError();
           excluded.add(provider.id);
@@ -104,6 +127,7 @@ export class GatewayRouter {
         }
 
         if (!response.ok) {
+          // Other 4xx we haven't explicitly classified — fail over
           provider.onError();
           excluded.add(provider.id);
           continue;
@@ -112,6 +136,7 @@ export class GatewayRouter {
         provider.onSuccess();
         return { response, provider, resolvedModel };
       } catch (err) {
+        if (err instanceof ProviderClientError) throw err; // propagate non-retriable errors
         provider.onError();
         excluded.add(provider.id);
       }
@@ -120,7 +145,6 @@ export class GatewayRouter {
 
   async complete(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
     const startTime = Date.now();
-    const isStreaming = !!request.stream;
 
     try {
       const { response, provider, resolvedModel } = await this.route(request);
@@ -135,7 +159,7 @@ export class GatewayRouter {
         provider: provider.id,
         latencyMs,
         status: "success",
-        streaming: isStreaming,
+        streaming: false,
       });
 
       return data;
@@ -148,7 +172,7 @@ export class GatewayRouter {
           latencyMs,
           status: "all_providers_failed",
           error: err.message,
-          streaming: isStreaming,
+          streaming: false,
         });
         throw err;
       }
@@ -158,7 +182,7 @@ export class GatewayRouter {
         latencyMs,
         status: "error",
         error: String(err),
-        streaming: isStreaming,
+        streaming: false,
       });
       throw err;
     }
@@ -183,5 +207,17 @@ export class AllProvidersExhaustedError extends Error {
   ) {
     super(message);
     this.name = "AllProvidersExhaustedError";
+  }
+}
+
+/** Thrown when a provider returns a non-retriable 4xx (400/401/403/404). */
+export class ProviderClientError extends Error {
+  constructor(
+    public readonly providerId: string,
+    public readonly statusCode: number,
+    public readonly upstreamResponse: Response,
+  ) {
+    super(`Provider ${providerId} returned ${statusCode}`);
+    this.name = "ProviderClientError";
   }
 }
