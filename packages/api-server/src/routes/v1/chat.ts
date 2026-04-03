@@ -1,12 +1,12 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { router as gatewayRouter, AllProvidersExhaustedError, ProviderClientError } from "../../gateway/index.js";
 import { logger } from "../../lib/logger.js";
 import type { ChatCompletionRequest } from "../../gateway/types.js";
 
 const chatRouter = Router();
 
-chatRouter.post("/completions", async (req: Request, res: Response) => {
+chatRouter.post("/completions", async (req: Request, res: Response, next: NextFunction) => {
   const body = req.body as ChatCompletionRequest;
 
   if (!body.model || !body.messages || !Array.isArray(body.messages)) {
@@ -22,40 +22,21 @@ chatRouter.post("/completions", async (req: Request, res: Response) => {
   if (body.stream) {
     await handleStreamingRequest(req, res, body);
   } else {
-    await handleNonStreamingRequest(res, body);
+    await handleNonStreamingRequest(req, res, body, next);
   }
 });
 
 async function handleNonStreamingRequest(
+  _req: Request,
   res: Response,
   body: ChatCompletionRequest,
+  next: NextFunction,
 ) {
   try {
     const data = await gatewayRouter.complete(body);
     res.json(data);
   } catch (err) {
-    if (err instanceof ProviderClientError) {
-      // Propagate the provider's original error payload + status code
-      const body = await err.upstreamResponse.json().catch(() => ({
-        error: { message: err.message, type: "provider_error" },
-      }));
-      res.status(err.statusCode).json(body);
-      return;
-    }
-    if (err instanceof AllProvidersExhaustedError) {
-      res.status(429).json({
-        error: {
-          message: err.message,
-          type: "rate_limit_error",
-          code: "all_providers_exhausted",
-        },
-      });
-      return;
-    }
-    logger.error({ err }, "Gateway error");
-    res.status(500).json({
-      error: { message: "Gateway error", type: "internal_error" },
-    });
+    next(err);
   }
 }
 

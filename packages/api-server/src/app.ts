@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { errorHandler } from "./middleware/error-handler.js";
 
 const app: Express = express();
 
@@ -32,5 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 // Mount at /api (used by dashboard via proxy) and also at root (direct SDK access: base_url="/v1")
 app.use("/api", router);
 app.use("/", router);
+
+app.use(errorHandler);
 
 export default app;
