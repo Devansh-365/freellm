@@ -202,6 +202,31 @@ All thresholds are configurable:
 | `CB_SUCCESS_THRESHOLD` | `2` | Successes needed in half-open to recover |
 | `CB_TIMEOUT_MS` | `30000` | Wait time before testing an open breaker |
 
+### Securing Your Gateway
+
+Both settings are optional. Leave them empty for local development.
+
+| Variable | What It Does |
+|----------|-------------|
+| `FREELLM_API_KEY` | When set, every request must include `Authorization: Bearer <key>`. Prevents unauthorized use of your gateway. |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins (e.g. `https://myapp.com,https://admin.myapp.com`). When empty, all origins are allowed. |
+
+**For production deployments**, set both:
+
+```env
+FREELLM_API_KEY=some-secret-key-here
+ALLOWED_ORIGINS=https://myapp.com
+```
+
+Then pass your key in requests:
+
+```bash
+curl http://your-server.com/v1/chat/completions \
+  -H "Authorization: Bearer some-secret-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "free-fast", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
 ## API Reference
 
 Fully OpenAI-compatible. Available at `/v1/...` (direct) and `/api/v1/...` (proxied via dashboard).
