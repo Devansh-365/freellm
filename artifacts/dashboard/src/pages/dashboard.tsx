@@ -71,16 +71,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div>
-          <h1 className="text-3xl font-mono font-bold tracking-tight">Gateway Status</h1>
-          <p className="text-muted-foreground mt-1">Real-time metrics and routing control.</p>
+          <h1 className="text-2xl md:text-3xl font-mono font-bold tracking-tight">Gateway Status</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Real-time metrics and routing control.</p>
         </div>
         
-        <div className="flex items-center gap-3 bg-card border border-border px-4 py-2 rounded-md shadow-sm">
+        <div className="flex items-center gap-3 bg-card border border-border px-3 py-2 rounded-md shadow-sm self-start sm:self-auto">
           <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <ArrowRightLeft className="w-4 h-4" /> Routing: <span className="text-foreground uppercase tracking-widest text-xs font-mono">{status?.routingStrategy}</span>
+            <ArrowRightLeft className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Routing:</span>
+            <span className="text-foreground uppercase tracking-widest text-xs font-mono">{status?.routingStrategy?.replace("_", " ")}</span>
           </span>
           <Switch 
             checked={status?.routingStrategy === "round_robin"} 
@@ -92,44 +94,44 @@ export default function Dashboard() {
       </div>
 
       {/* Global Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-secondary/50 rounded-md">
+          <CardContent className="p-3 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+              <div className="hidden md:flex p-3 bg-secondary/50 rounded-md w-fit">
                 <Activity className="w-5 h-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Requests</p>
-                <p className="text-3xl font-mono font-bold">{status?.totalRequests.toLocaleString()}</p>
+                <p className="text-xs md:text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-2xl md:text-3xl font-mono font-bold">{status?.totalRequests.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-md">
+          <CardContent className="p-3 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+              <div className="hidden md:flex p-3 bg-primary/10 rounded-md w-fit">
                 <CheckCircle2 className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Success</p>
-                <p className="text-3xl font-mono font-bold">{status?.successRequests.toLocaleString()}</p>
+                <p className="text-xs md:text-sm font-medium text-muted-foreground">Success</p>
+                <p className="text-2xl md:text-3xl font-mono font-bold text-primary">{status?.successRequests.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-destructive/10 rounded-md">
+          <CardContent className="p-3 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+              <div className="hidden md:flex p-3 bg-destructive/10 rounded-md w-fit">
                 <XCircle className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Failed</p>
-                <p className="text-3xl font-mono font-bold">{status?.failedRequests.toLocaleString()}</p>
+                <p className="text-xs md:text-sm font-medium text-muted-foreground">Failed</p>
+                <p className="text-2xl md:text-3xl font-mono font-bold text-destructive">{status?.failedRequests.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
