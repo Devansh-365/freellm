@@ -1,6 +1,8 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "path";
+import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -8,6 +10,9 @@ import { auth } from "./middleware/auth.js";
 import { clientRateLimit } from "./middleware/rate-limit.js";
 
 const app: Express = express();
+
+// Trust reverse proxy (Railway, Render, etc.) so req.ip is the real client IP
+app.set("trust proxy", 1);
 
 // CORS: restrict origins in production via ALLOWED_ORIGINS env var
 const allowedOrigins = process.env["ALLOWED_ORIGINS"];
@@ -52,5 +57,18 @@ app.use("/api", router);
 app.use("/", router);
 
 app.use(errorHandler);
+
+// In production, serve the dashboard as static files from the same process
+const dashboardDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../dashboard/dist/public",
+);
+app.use(express.static(dashboardDir));
+// SPA fallback: serve index.html for any unmatched route (client-side routing)
+app.get("*", (_req, res, next) => {
+  res.sendFile(path.join(dashboardDir, "index.html"), (err) => {
+    if (err) next();
+  });
+});
 
 export default app;

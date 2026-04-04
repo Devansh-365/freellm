@@ -8,18 +8,26 @@ FROM base AS deps
 
 COPY package.json pnpm-workspace.yaml ./
 COPY packages/api-server/package.json packages/api-server/
+COPY packages/dashboard/package.json packages/dashboard/
 COPY lib/api-client-react/package.json lib/api-client-react/ 2>/dev/null || true
-COPY lib/api-spec/package.json lib/api-spec/ 2>/dev/null || true
 
 RUN pnpm install --no-frozen-lockfile
 
-# ── Build ──
-FROM deps AS build
+# ── Build API server ──
+FROM deps AS build-api
 
 COPY packages/api-server/ packages/api-server/
 COPY lib/ lib/
 
 RUN cd packages/api-server && pnpm run build
+
+# ── Build dashboard ──
+FROM deps AS build-dashboard
+
+COPY packages/dashboard/ packages/dashboard/
+COPY lib/ lib/
+
+RUN cd packages/dashboard && pnpm run build
 
 # ── Production ──
 FROM base AS production
@@ -31,8 +39,9 @@ ENV PORT=3000
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/api-server/node_modules ./packages/api-server/node_modules
-COPY --from=build /app/packages/api-server/dist ./packages/api-server/dist
-COPY --from=build /app/packages/api-server/package.json ./packages/api-server/
+COPY --from=build-api /app/packages/api-server/dist ./packages/api-server/dist
+COPY --from=build-api /app/packages/api-server/package.json ./packages/api-server/
+COPY --from=build-dashboard /app/packages/dashboard/dist/public ./packages/dashboard/dist/public
 
 WORKDIR /app/packages/api-server
 

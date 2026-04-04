@@ -2,7 +2,10 @@ node_modules
 dist
 .git
 .env
-*.md
 docs
 .claude
 .pm
+scripts
+*.md
+!package.json
+!pnpm-workspace.yaml
