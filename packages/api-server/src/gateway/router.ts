@@ -270,6 +270,8 @@ export class GatewayRouter {
         promptTokens: cached.promptTokens || undefined,
         completionTokens: cached.completionTokens || undefined,
         cached: true,
+        requestBody: request,
+        responseBody: data,
       });
 
       const meta: RouteMeta = {
@@ -328,6 +330,8 @@ export class GatewayRouter {
         promptTokens: promptTokens || undefined,
         completionTokens: completionTokens || undefined,
         finishReason,
+        requestBody: request,
+        responseBody: data,
       });
 
       // Store in cache for future identical requests.
@@ -357,6 +361,7 @@ export class GatewayRouter {
           status: "all_providers_failed",
           error: err.message,
           streaming: false,
+          requestBody: request,
         });
         throw err;
       }
@@ -367,6 +372,7 @@ export class GatewayRouter {
         status: "error",
         error: String(err),
         streaming: false,
+        requestBody: request,
       });
       throw err;
     }

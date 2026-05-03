@@ -229,6 +229,9 @@ async function handleStreamingRequest(
         latencyMs,
         status: "success",
         streaming: true,
+        requestBody: body,
+        responseBody: pipeline.getAccumulated(),
+        chunkCount: pipeline.getChunkCount(),
       });
       if (virtualKey) {
         getVirtualKeyStore().recordRequest(virtualKey, 0);
@@ -244,6 +247,9 @@ async function handleStreamingRequest(
         status: "error",
         error: String(streamErr),
         streaming: true,
+        requestBody: body,
+        responseBody: pipeline.getAccumulated(),
+        chunkCount: pipeline.getChunkCount(),
       });
       logger.error({ err: streamErr }, "Stream relay error");
     } finally {
