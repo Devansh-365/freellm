@@ -10,6 +10,7 @@ import {
   TOKEN_PREFIX,
   type BrowserTokenPayload,
 } from "../gateway/browser-token.js";
+import { parseCookieSession } from "../auth/session.js";
 
 /** Hash a string to a fixed-length buffer for timing-safe comparison. */
 function hashKey(key: string): Buffer {
@@ -53,14 +54,32 @@ export function auth(req: Request, _res: Response, next: NextFunction): void {
   const virtualKeyStore = getVirtualKeyStore();
   const hasVirtualKeys = virtualKeyStore.size() > 0;
 
+  // Let non-API paths through to static files / SPA fallback.
+  // The dashboard SPA handles its own auth gate client-side via /api/auth/me.
+  if (!req.path.startsWith("/api/") && !req.path.startsWith("/v1/")) {
+    next();
+    return;
+  }
+
   // Health check is always unauthenticated so Docker HEALTHCHECK works.
-  if (req.path === "/healthz" || req.path === "/api/healthz") {
+  // Dashboard auth endpoints (/auth/*) handle their own auth internally.
+  if (
+    req.path === "/api/healthz" ||
+    req.path.startsWith("/auth/") ||
+    req.path.startsWith("/api/auth/")
+  ) {
     next();
     return;
   }
 
   // Fully open gateway: no master key, no admin key, no virtual keys.
   if (!requiredKey && !adminKey && !hasVirtualKeys) {
+    next();
+    return;
+  }
+
+  // Dashboard session cookie — authenticated operator via browser login.
+  if (parseCookieSession(req.headers.cookie)) {
     next();
     return;
   }

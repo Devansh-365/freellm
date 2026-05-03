@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Activity, Box, Terminal } from "lucide-react";
+import { Activity, Box, Terminal, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHealthCheck, getHealthCheckQueryKey } from "@workspace/api-client-react";
 import { FreeLLMLogo } from "./logo";
@@ -9,6 +9,11 @@ const navItems = [
   { href: "/models", label: "Models", icon: Box },
   { href: "/quickstart", label: "Quickstart", icon: Terminal },
 ];
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
+  window.location.replace("/");
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -54,12 +59,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.04] text-xs font-mono">
-            <div className={cn("w-2 h-2 rounded-full shrink-0 transition-colors", gatewayDot)} />
-            <span className="text-muted-foreground">Gateway</span>
-            <span className="uppercase text-[10px] tracking-widest text-foreground/70">
-              {isLoading ? "..." : health?.status || "UNK"}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.04] text-xs font-mono">
+              <div className={cn("w-2 h-2 rounded-full shrink-0 transition-colors", gatewayDot)} />
+              <span className="text-muted-foreground">Gateway</span>
+              <span className="uppercase text-[10px] tracking-widest text-foreground/70">
+                {isLoading ? "..." : health?.status || "UNK"}
+              </span>
+            </div>
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </header>

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { createHash, timingSafeEqual } from "crypto";
 import { freellmError } from "../errors/index.js";
+import { parseCookieSession } from "../auth/session.js";
 
 function hashKey(key: string): Buffer {
   return createHash("sha256").update(key).digest();
@@ -8,14 +9,20 @@ function hashKey(key: string): Buffer {
 
 /**
  * Admin-only auth for status/reset/routing endpoints.
- * If FREELLM_ADMIN_KEY is set, requires Authorization: Bearer <admin-key>.
- * If not set, falls through to the regular auth middleware (same key for everything).
+ * Accepts: a valid dashboard session cookie, or Authorization: Bearer <admin-key>.
+ * If FREELLM_ADMIN_KEY is not set, falls through (regular auth already handled it).
  */
 export function adminAuth(req: Request, _res: Response, next: NextFunction): void {
   const adminKey = process.env["FREELLM_ADMIN_KEY"];
 
   if (!adminKey) {
-    // No separate admin key -- regular auth (if any) already handled it
+    // No separate admin key — regular auth (if any) already handled it
+    next();
+    return;
+  }
+
+  // Dashboard session cookie is treated as admin
+  if (parseCookieSession(req.headers.cookie)) {
     next();
     return;
   }

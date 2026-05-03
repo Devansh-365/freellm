@@ -55,6 +55,15 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
+// In production, serve the dashboard static files (HTML/JS/CSS) before auth
+// so a browser can load the SPA shell without a bearer token. The app-level
+// login page then handles authentication via session cookie.
+const dashboardDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../dashboard/dist/public",
+);
+app.use(express.static(dashboardDir));
+
 // Per-client rate limiting (by IP)
 app.use(clientRateLimit);
 
@@ -72,13 +81,8 @@ app.use("/", router);
 
 app.use(errorHandler);
 
-// In production, serve the dashboard as static files from the same process
-const dashboardDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../dashboard/dist/public",
-);
-app.use(express.static(dashboardDir));
-// SPA fallback: serve index.html for any unmatched route (client-side routing)
+// SPA fallback: serve index.html for client-side routes (e.g. /models, /quickstart)
+// that don't match any static file or API route.
 app.use((_req, res, next) => {
   res.sendFile(path.join(dashboardDir, "index.html"), (err) => {
     if (err) next();
