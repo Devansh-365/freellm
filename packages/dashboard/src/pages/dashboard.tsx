@@ -1,11 +1,11 @@
-import { useGetGatewayStatus, useResetProviderCircuitBreaker, useUpdateRoutingStrategy, getGetGatewayStatusQueryKey } from "@workspace/api-client-react";
+import { useGetGatewayStatus, useResetProviderCircuitBreaker, useUpdateRoutingStrategy, getGetGatewayStatusQueryKey, useGetRequests, getGetRequestsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Server } from "lucide-react";
 import { toast } from "sonner";
 import { RoutingToggle } from "@/components/routing-toggle";
 import { MetricsRow } from "@/components/metrics-row";
 import { ProviderCard } from "@/components/provider-card";
-import { RequestTable } from "@/components/request-table";
+import { RequestList } from "@/components/request-list";
 import { VirtualKeysPanel } from "@/components/virtual-keys-panel";
 import { BrowserTokensCard } from "@/components/browser-tokens-card";
 
@@ -14,6 +14,11 @@ export default function Dashboard() {
   const { data: status, isLoading } = useGetGatewayStatus({
     query: { refetchInterval: 3000, queryKey: getGetGatewayStatusQueryKey() },
   });
+
+  const { data: requestsPage } = useGetRequests(
+    { limit: 500 },
+    { query: { refetchInterval: 3000, queryKey: getGetRequestsQueryKey({ limit: 500 }) } },
+  );
 
   const resetCircuitBreaker = useResetProviderCircuitBreaker({
     mutation: {
@@ -96,7 +101,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <RequestTable requests={status?.recentRequests ?? []} />
+      <RequestList requests={requestsPage?.requests ?? []} />
     </div>
   );
 }

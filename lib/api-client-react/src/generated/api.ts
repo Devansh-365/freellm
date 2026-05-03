@@ -21,9 +21,12 @@ import type {
   ChatCompletionResponse,
   GatewayError,
   GatewayStatus,
+  GetRequestsParams,
   HealthStatus,
   ModelsResponse,
   ProviderStatus,
+  RequestLogEntry,
+  RequestLogPage,
   UpdateRoutingStrategyRequest,
 } from "./api.schemas";
 
@@ -526,3 +529,115 @@ export const useUpdateRoutingStrategy = <
 > => {
   return useMutation(getUpdateRoutingStrategyMutationOptions(options));
 };
+
+export const getGetRequestsUrl = (params?: GetRequestsParams) => {
+  const searchParams = new URLSearchParams();
+  if (params?.limit != null) searchParams.set("limit", String(params.limit));
+  if (params?.before != null) searchParams.set("before", params.before);
+  const qs = searchParams.toString();
+  return `/api/v1/status/requests${qs ? `?${qs}` : ""}`;
+};
+
+export const getRequests = async (
+  params?: GetRequestsParams,
+  options?: RequestInit,
+): Promise<RequestLogPage> => {
+  return customFetch<RequestLogPage>(getGetRequestsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRequestsQueryKey = (params?: GetRequestsParams) => {
+  return [`/api/v1/status/requests`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRequestsParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getRequests>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetRequestsQueryKey(params);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRequests>>> = ({ signal }) =>
+    getRequests(params, { signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export function useGetRequests<
+  TData = Awaited<ReturnType<typeof getRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRequestsParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getRequests>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRequestsQueryOptions(params, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetRequestByIdUrl = (id: string) => {
+  return `/api/v1/status/requests/${id}`;
+};
+
+export const getRequestById = async (
+  id: string,
+  options?: RequestInit,
+): Promise<RequestLogEntry> => {
+  return customFetch<RequestLogEntry>(getGetRequestByIdUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRequestByIdQueryKey = (id: string) => {
+  return [`/api/v1/status/requests/${id}`] as const;
+};
+
+export const getGetRequestByIdQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRequestById>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getRequestById>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetRequestByIdQueryKey(id);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRequestById>>> = ({ signal }) =>
+    getRequestById(id, { signal, ...requestOptions });
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRequestById>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export function useGetRequestById<
+  TData = Awaited<ReturnType<typeof getRequestById>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getRequestById>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRequestByIdQueryOptions(id, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey: queryOptions.queryKey };
+}

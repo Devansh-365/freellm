@@ -131,6 +131,20 @@ export interface RequestLogEntry {
   promptTokens?: number;
   completionTokens?: number;
   cached?: boolean;
+  finishReason?: string | null;
+  chunkCount?: number;
+  requestBody?: unknown;
+  responseBody?: unknown;
+}
+
+export interface RequestLogPage {
+  requests: RequestLogEntry[];
+  nextBefore: string | null;
+}
+
+export interface GetRequestsParams {
+  limit?: number;
+  before?: string;
 }
 
 export interface BrowserTokensInfo {
