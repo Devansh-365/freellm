@@ -11,8 +11,8 @@
  * Stats are maintained in-memory but hydrated from DB on construction so
  * counters survive restarts.
  *
- * Backpressure: if pending exceeds BACKPRESSURE_LIMIT, a sync flush runs
- * inside add() to bound RAM under burst load.
+ * Backpressure: if pending exceeds MAX_LOG_ENTRIES, a sync flush runs
+ * inside add() to bound RAM to the same cap as the DB.
  */
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -22,7 +22,6 @@ import type { RequestLogEntry } from "./types.js";
 
 const MAX_LOG_ENTRIES = 500;
 const DEFAULT_FLUSH_MS = 5000;
-const BACKPRESSURE_LIMIT = 1000;
 
 export interface GatewayStats {
   totalRequests: number;
@@ -218,7 +217,7 @@ export class RequestLog {
     if (entry.status === "success") this.stats.successRequests++;
     else this.stats.failedRequests++;
 
-    if (this.pending.length > BACKPRESSURE_LIMIT) {
+    if (this.pending.length > MAX_LOG_ENTRIES) {
       this.flush();
     }
     return full;
