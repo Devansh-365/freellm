@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "better-sqlite3": "^11",
     "cors": "^2",
     "express": "^5",
     "express-rate-limit": "^7",
@@ -20,6 +21,7 @@
     "zod": "^3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",

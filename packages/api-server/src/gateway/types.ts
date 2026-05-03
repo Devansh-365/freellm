@@ -124,6 +124,12 @@ export interface RequestLogEntry {
    * safety filter. Missing for streaming and cache-hit entries.
    */
   finishReason?: string | null;
+  /** Captured request body. Persisted for inline expand in dashboard. */
+  requestBody?: unknown;
+  /** Captured response body. For streams, assembled `delta.content`. */
+  responseBody?: unknown;
+  /** Number of streamed chunks observed. Streaming entries only. */
+  chunkCount?: number;
 }
 
 export interface TokenUsageTotals {
