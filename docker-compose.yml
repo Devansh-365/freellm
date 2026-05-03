@@ -1,7 +1,49 @@
 services:
+  ollama1:
+    image: alpine/ollama:latest
+    container_name: freellm-ollama1
+    restart: unless-stopped
+    volumes:
+      - ollama1_data:/root/.ollama
+    networks:
+      - freellm-network
+
+  ollama2:
+    image: alpine/ollama:latest
+    container_name: freellm-ollama2
+    restart: unless-stopped
+    volumes:
+      - ollama2_data:/root/.ollama
+    networks:
+      - freellm-network
+
+  ollama3:
+    image: alpine/ollama:latest
+    container_name: freellm-ollama3
+    restart: unless-stopped
+    volumes:
+      - ollama3_data:/root/.ollama
+    networks:
+      - freellm-network
+
+  ollama-lb:
+    image: nginx:alpine
+    container_name: freellm-ollama-lb
+    restart: unless-stopped
+    volumes:
+      - ./infra/ollama-lb.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - ollama1
+      - ollama2
+      - ollama3
+    networks:
+      - freellm-network
+
   freellm:
     build: .
+    image: ghcr.io/${GHCR_OWNER:-iamsal}/freellm:latest
     container_name: freellm
+    restart: unless-stopped
     ports:
       - "3000:3000"
     env_file:
@@ -9,4 +51,23 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-    restart: unless-stopped
+      - OLLAMA_BASE_URL=http://ollama-lb:11434
+    depends_on:
+      - ollama-lb
+    networks:
+      - freellm-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  ollama1_data:
+  ollama2_data:
+  ollama3_data:
+
+networks:
+  freellm-network:
+    driver: bridge

@@ -1,0 +1,60 @@
+name: Deploy FreeLLM
+
+on:
+  workflow_run:
+    workflows: ["Build and publish Docker image"]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            docker-compose.yml
+            infra
+          sparse-checkout-cone-mode: false
+
+      - name: Copy files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: "docker-compose.yml,infra"
+          target: ${{ secrets.PROJECT_DIR }}
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            cd ${{ secrets.PROJECT_DIR }}
+
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+            docker compose pull freellm
+            docker compose up -d --force-recreate freellm
+            docker compose up -d
+
+            echo "Waiting for services to become healthy..."
+            sleep 15
+
+            if ! docker ps --format '{{.Names}}' | grep -q "^freellm$"; then
+              echo "ERROR: freellm is not running!"
+              docker logs freellm --tail 30 2>&1
+              exit 1
+            fi
+
+            docker image prune -f
+            echo "FreeLLM deployed successfully."
