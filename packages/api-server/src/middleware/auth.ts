@@ -78,12 +78,8 @@ export function auth(req: Request, _res: Response, next: NextFunction): void {
     return;
   }
 
-  // Dashboard session cookie authenticates dashboard/admin surfaces only,
-  // never the OpenAI-compatible /v1 API. Browsers that need /v1 access
-  // must mint a flt.* browser token via POST /v1/tokens/issue.
-  const isApiV1 =
-    req.path.startsWith("/v1/") || req.path.startsWith("/api/v1/");
-  if (!isApiV1 && parseCookieSession(req.headers.cookie)) {
+  // Dashboard session cookie — authenticated operator via browser login.
+  if (parseCookieSession(req.headers.cookie)) {
     next();
     return;
   }
