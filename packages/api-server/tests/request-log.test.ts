@@ -6,7 +6,7 @@
  *   2. getById() finds buffer-only entries before flush, DB after.
  *   3. flush() persists pending atomically and prunes to 500 newest.
  *   4. getStats() hydrates from DB on construction.
- *   5. Backpressure: pending > 500 triggers sync flush (aligned with DB cap).
+ *   5. Backpressure: pending > 500 trims oldest from RAM, no sync DB write.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -121,11 +121,15 @@ describe("RequestLog (SQLite-backed)", () => {
     expect(page2.requests[0]!.id).not.toBe(page1.requests[3]!.id);
   });
 
-  it("backpressure: sync flush when pending > 500, bounds RAM to DB cap", () => {
+  it("backpressure: trims RAM to 500 without flushing to DB", () => {
     log = new RequestLog({ dbPath, flushIntervalMs: 0 });
-    for (let i = 0; i < 501; i++) {
-      log.add(makeEntry());
+    for (let i = 0; i < 600; i++) {
+      log.add(makeEntry({ requestedModel: `m${i}` }));
     }
-    expect(log.getPendingSize()).toBeLessThanOrEqual(500);
+    expect(log.getPendingSize()).toBe(500);
+    // newest entries kept — oldest dropped
+    const recent = log.getRecent(500);
+    expect(recent[0]!.requestedModel).toBe("m599");
+    expect(recent[499]!.requestedModel).toBe("m100");
   });
 });

@@ -11,8 +11,9 @@
  * Stats are maintained in-memory but hydrated from DB on construction so
  * counters survive restarts.
  *
- * Backpressure: if pending exceeds MAX_LOG_ENTRIES, a sync flush runs
- * inside add() to bound RAM to the same cap as the DB.
+ * Backpressure: if pending exceeds MAX_LOG_ENTRIES, oldest entries are
+ * trimmed from RAM (they'd be pruned from DB anyway). No sync DB write
+ * in the hot path — timer flush handles persistence.
  */
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -218,7 +219,7 @@ export class RequestLog {
     else this.stats.failedRequests++;
 
     if (this.pending.length > MAX_LOG_ENTRIES) {
-      this.flush();
+      this.pending.splice(0, this.pending.length - MAX_LOG_ENTRIES);
     }
     return full;
   }
