@@ -28,6 +28,8 @@ const statusRouter: IRouter = Router();
 statusRouter.post("/providers/:providerId/reset", adminAuth);
 statusRouter.patch("/routing", adminAuth);
 statusRouter.get("/virtual-keys", adminAuth);
+statusRouter.get("/requests", adminAuth);
+statusRouter.get("/requests/:id", adminAuth);
 
 statusRouter.get("/", (_req, res) => {
   const stats = gatewayRouter.requestLog.getStats();
@@ -122,6 +124,25 @@ statusRouter.get("/virtual-keys", (_req, res) => {
     count: keys.length,
     keys,
   });
+});
+
+statusRouter.get("/requests", (req, res) => {
+  const rawLimit = parseInt(String(req.query["limit"] ?? "100"), 10);
+  const limit = Math.min(isNaN(rawLimit) || rawLimit < 1 ? 100 : rawLimit, 500);
+  const before = typeof req.query["before"] === "string" ? req.query["before"] : undefined;
+
+  const { requests, nextBefore } = gatewayRouter.requestLog.getPage({ limit, before });
+  const stripped = requests.map(({ requestBody: _rb, responseBody: _rsp, ...rest }) => rest);
+  res.json({ requests: stripped, nextBefore });
+});
+
+statusRouter.get("/requests/:id", (req, res) => {
+  const entry = gatewayRouter.requestLog.getById(req.params["id"] as string);
+  if (!entry) {
+    res.status(404).json({ error: { message: `Request log entry not found: ${req.params["id"]}` } });
+    return;
+  }
+  res.json(entry);
 });
 
 statusRouter.patch("/routing", validate(updateRoutingSchema), (req, res) => {
