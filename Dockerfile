@@ -6,12 +6,12 @@ WORKDIR /app
 # ── Install dependencies ──
 FROM base AS deps
 
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/api-server/package.json packages/api-server/
 COPY packages/dashboard/package.json packages/dashboard/
 COPY lib/api-client-react/package.json lib/api-client-react/
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile --shamefully-hoist
 
 # ── Build API server ──
 FROM deps AS build-api
@@ -32,6 +32,8 @@ RUN cd packages/dashboard && pnpm run build
 # ── Production ──
 FROM base AS production
 
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 ENV NODE_ENV=production
@@ -43,13 +45,15 @@ COPY --from=build-api /app/packages/api-server/dist ./packages/api-server/dist
 COPY --from=build-api /app/packages/api-server/package.json ./packages/api-server/
 COPY --from=build-dashboard /app/packages/dashboard/dist/public ./packages/dashboard/dist/public
 
-WORKDIR /app/packages/api-server
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-USER appuser
+WORKDIR /app/packages/api-server
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/healthz').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "--enable-source-maps", "dist/index.mjs"]
