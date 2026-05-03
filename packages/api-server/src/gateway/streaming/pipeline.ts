@@ -22,10 +22,22 @@ export class StreamingPipeline {
   private parser = new SSEParser();
   private normalizer: Normalizer;
   private providerId: string;
+  private accumulated = "";
+  private chunkCount = 0;
 
   constructor(providerId: string) {
     this.providerId = providerId;
     this.normalizer = createNormalizer(providerId);
+  }
+
+  /** Concatenated `delta.content` across all parsed chunks. */
+  getAccumulated(): string {
+    return this.accumulated;
+  }
+
+  /** Number of successfully-parsed data chunks observed. */
+  getChunkCount(): number {
+    return this.chunkCount;
   }
 
   /**
@@ -97,6 +109,10 @@ export class StreamingPipeline {
         out += serializeEvent(event);
         continue;
       }
+
+      this.chunkCount++;
+      const delta = parsed.choices?.[0]?.delta?.content;
+      if (typeof delta === "string") this.accumulated += delta;
 
       let transformed: ChatCompletionChunk[];
       try {
