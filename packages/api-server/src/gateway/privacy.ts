@@ -94,6 +94,12 @@ export const PROVIDER_PRIVACY: Record<string, ProviderPrivacy> = {
     last_verified: "2026-04-09",
     note: "Ollama runs locally; data never leaves the host.",
   },
+  "claude-code": {
+    policy: "local",
+    source_url: "https://docs.claude.com/en/docs/claude-code/overview",
+    last_verified: "2026-05-04",
+    note: "Routes through user's host Claude Code OAuth credentials; uses user's own Claude subscription. No FreeLLM-managed key.",
+  },
 };
 
 /** Return the policies that satisfy a caller-requested posture. */
