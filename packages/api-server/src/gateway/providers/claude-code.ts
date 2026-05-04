@@ -1,16 +1,24 @@
-import { query } from "@anthropic-ai/claude-code";
 import { randomUUID } from "node:crypto";
+import { request as httpRequest } from "node:http";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { BaseProvider } from "./base.js";
-import type { ModelObject, ChatCompletionRequest, ChatMessage } from "../types.js";
+import type {
+  ModelObject,
+  ChatCompletionRequest,
+  ChatMessage,
+} from "../types.js";
+import { execSync } from "node:child_process";
 
 const DEFAULT_VARIANTS = ["sonnet", "opus", "haiku"];
+const DEFAULT_SOCKET = "/var/run/claude-bridge.sock";
 
-function hasCreds(): boolean {
+function bridgeSocketPath(): string {
+  return process.env["CLAUDE_CODE_BRIDGE_SOCKET"] ?? DEFAULT_SOCKET;
+}
+
+function bridgeAvailable(): boolean {
   try {
-    const home = process.env["HOME"] ?? "/home/appuser";
-    return existsSync(join(home, ".claude", ".credentials.json"));
+    return !!execSync(`claude --version`);
   } catch {
     return false;
   }
@@ -18,17 +26,20 @@ function hasCreds(): boolean {
 
 export class ClaudeCodeProvider extends BaseProvider {
   readonly id = "claude-code";
-  readonly name = "Claude Code (host OAuth)";
+  readonly name = "Claude Code (host bridge)";
 
   get baseUrl(): string {
-    return "claude-code-sdk://";
+    return `unix://${bridgeSocketPath()}`;
   }
 
   get models(): ModelObject[] {
-    if (!hasCreds()) return [];
+    if (!bridgeAvailable()) return [];
     const raw = process.env["CLAUDE_CODE_MODELS"]?.trim();
     const variants = raw
-      ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+      ? raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
       : DEFAULT_VARIANTS;
     return variants.map((v) => ({
       id: `claude-code/${v}`,
@@ -40,13 +51,15 @@ export class ClaudeCodeProvider extends BaseProvider {
   }
 
   protected getApiKeys(): string[] {
-    return hasCreds() ? ["claude-code"] : [];
+    return bridgeAvailable() ? ["claude-code"] : [];
   }
 
   async complete(request: ChatCompletionRequest): Promise<Response> {
     const picked = this.pickKey();
     if (!picked) {
-      throw new Error(`Provider ${this.name} is not configured`);
+      throw new Error(
+        `Provider ${this.name} is not configured (bridge socket missing)`,
+      );
     }
 
     this.stats.totalRequests++;
@@ -56,16 +69,7 @@ export class ClaudeCodeProvider extends BaseProvider {
     const variant = request.model.replace(/^claude-code\//, "");
     const prompt = flattenMessages(request.messages);
 
-    const iter = query({
-      prompt,
-      options: {
-        model: variant,
-        allowedTools: [],
-        permissionMode: "plan",
-        maxTurns: 1,
-        includePartialMessages: true,
-      },
-    });
+    const iter = bridgeStream(bridgeSocketPath(), { prompt, model: variant });
 
     const response = request.stream
       ? buildSseResponse(iter, request.model, this)
@@ -101,6 +105,73 @@ function flattenMessages(messages: ChatMessage[]): string {
     .join("\n\n");
 }
 
+type BridgeBody = { prompt: string; model: string };
+
+async function* bridgeStream(
+  socketPath: string,
+  body: BridgeBody,
+): AsyncGenerator<Record<string, unknown>> {
+  const payload = JSON.stringify(body);
+
+  const req = httpRequest({
+    socketPath,
+    method: "POST",
+    path: "/v1/complete",
+    headers: {
+      "content-type": "application/json",
+      "content-length": Buffer.byteLength(payload),
+    },
+  });
+
+  const responsePromise = new Promise<NodeJS.ReadableStream>(
+    (resolve, reject) => {
+      req.once("response", (res) => {
+        if (res.statusCode && res.statusCode >= 400) {
+          const chunks: Buffer[] = [];
+          res.on("data", (c: Buffer) => chunks.push(c));
+          res.on("end", () =>
+            reject(
+              new Error(
+                `bridge http ${res.statusCode}: ${Buffer.concat(chunks).toString("utf8")}`,
+              ),
+            ),
+          );
+          return;
+        }
+        resolve(res);
+      });
+      req.once("error", reject);
+    },
+  );
+
+  req.write(payload);
+  req.end();
+
+  const res = await responsePromise;
+
+  let buf = "";
+  for await (const chunk of res as AsyncIterable<Buffer>) {
+    buf += chunk.toString("utf8");
+    let nl: number;
+    while ((nl = buf.indexOf("\n")) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      try {
+        yield JSON.parse(line) as Record<string, unknown>;
+      } catch {
+        // skip malformed line
+      }
+    }
+  }
+  const tail = buf.trim();
+  if (tail) {
+    try {
+      yield JSON.parse(tail) as Record<string, unknown>;
+    } catch {}
+  }
+}
+
 type StreamEvent = {
   type: string;
   delta?: { type: string; text?: string };
@@ -116,7 +187,7 @@ function extractDeltaText(event: unknown): string | null {
 }
 
 async function buildJsonResponse(
-  iter: AsyncIterable<{ type: string; result?: string; subtype?: string }>,
+  iter: AsyncIterable<Record<string, unknown>>,
   modelId: string,
   provider: ClaudeCodeProvider,
 ): Promise<Response> {
@@ -125,18 +196,23 @@ async function buildJsonResponse(
 
   try {
     for await (const msg of iter) {
-      if (msg.type === "stream_event") {
-        const text = extractDeltaText((msg as { event: unknown }).event);
+      const type = msg["type"];
+      if (type === "stream_event") {
+        const text = extractDeltaText(msg["event"]);
         if (text) content += text;
-      } else if (msg.type === "result") {
-        const r = msg as { type: string; subtype: string; result?: string };
-        if (r.subtype === "success" && r.result) {
-          content = r.result;
-        } else if (r.subtype === "error_max_turns") {
+      } else if (type === "result") {
+        const subtype = msg["subtype"];
+        const result = msg["result"];
+        if (subtype === "success" && typeof result === "string") {
+          content = result;
+        } else if (subtype === "error_max_turns") {
           finishReason = "length";
-        } else if (r.subtype === "error_during_execution") {
-          throw new Error("claude SDK error during execution");
+        } else if (subtype === "error_during_execution") {
+          throw new Error("claude bridge error during execution");
         }
+      } else if (type === "bridge_error") {
+        const stderr = msg["stderr"] ? `: ${msg["stderr"]}` : "";
+        throw new Error(`bridge error${stderr}`);
       }
     }
   } catch (err) {
@@ -166,7 +242,7 @@ async function buildJsonResponse(
 }
 
 function buildSseResponse(
-  iter: AsyncIterable<{ type: string; subtype?: string; result?: string; event?: unknown }>,
+  iter: AsyncIterable<Record<string, unknown>>,
   modelId: string,
   provider: ClaudeCodeProvider,
 ): Response {
@@ -186,19 +262,23 @@ function buildSseResponse(
 
       try {
         for await (const msg of iter) {
-          if (msg.type === "stream_event") {
-            const text = extractDeltaText(msg.event);
+          const type = msg["type"];
+          if (type === "stream_event") {
+            const text = extractDeltaText(msg["event"]);
             if (text) {
               send({
                 id,
                 object: "chat.completion.chunk",
                 created,
                 model: modelId,
-                choices: [{ index: 0, delta: { content: text }, finish_reason: null }],
+                choices: [
+                  { index: 0, delta: { content: text }, finish_reason: null },
+                ],
               });
             }
-          } else if (msg.type === "result") {
-            const finishReason = msg.subtype === "error_max_turns" ? "length" : "stop";
+          } else if (type === "result") {
+            const finishReason =
+              msg["subtype"] === "error_max_turns" ? "length" : "stop";
             send({
               id,
               object: "chat.completion.chunk",
@@ -206,6 +286,9 @@ function buildSseResponse(
               model: modelId,
               choices: [{ index: 0, delta: {}, finish_reason: finishReason }],
             });
+          } else if (type === "bridge_error") {
+            const stderr = msg["stderr"] ? `: ${msg["stderr"]}` : "";
+            throw new Error(`bridge error${stderr}`);
           }
         }
         done();
@@ -216,7 +299,13 @@ function buildSseResponse(
           object: "chat.completion.chunk",
           created,
           model: modelId,
-          choices: [{ index: 0, delta: { content: `\n[Error: ${String(err)}]` }, finish_reason: "stop" }],
+          choices: [
+            {
+              index: 0,
+              delta: { content: `\n[Error: ${String(err)}]` },
+              finish_reason: "stop",
+            },
+          ],
         });
         done();
       }
@@ -225,6 +314,9 @@ function buildSseResponse(
 
   return new Response(stream, {
     status: 200,
-    headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
+    headers: {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+    },
   });
 }

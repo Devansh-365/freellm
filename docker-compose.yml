@@ -53,9 +53,11 @@ services:
       - PORT=3000
       - OLLAMA_BASE_URL=http://ollama-lb:11434
       - HOME=/home/appuser
+      - CLAUDE_CODE_BRIDGE_SOCKET=/var/run/claude-bridge.sock
     volumes:
       - freellm_data:/app/packages/api-server/data
       - ${HOME}/.claude:/home/appuser/.claude
+      - /tmp/claude-bridge.sock:/var/run/claude-bridge.sock
     depends_on:
       - ollama-lb
     networks:

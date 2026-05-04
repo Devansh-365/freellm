@@ -5,7 +5,14 @@
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "dev:up": "bash scripts/dev-up.sh",
+    "dev:down": "bash scripts/dev-down.sh",
+    "bridge:install": "bash scripts/claude-host-bridge/install.sh",
+    "bridge:uninstall": "bash scripts/claude-host-bridge/uninstall.sh",
+    "bridge:status": "launchctl print gui/$(id -u)/com.freellm.claude-bridge | grep -E 'state|last exit|path' || echo 'agent not loaded'",
+    "bridge:logs": "tail -F ${HOME}/Library/Logs/freellm-claude-bridge.out.log ${HOME}/Library/Logs/freellm-claude-bridge.err.log",
+    "bridge:health": "curl --unix-socket /tmp/claude-bridge.sock http://localhost/healthz"
   },
   "engines": {
     "node": ">=20"
