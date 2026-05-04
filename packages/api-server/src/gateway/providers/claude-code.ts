@@ -1,19 +1,31 @@
 import { query } from "@anthropic-ai/claude-code";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { BaseProvider } from "./base.js";
 import type { ModelObject, ChatCompletionRequest, ChatMessage } from "../types.js";
 
 const DEFAULT_VARIANTS = ["sonnet", "opus", "haiku"];
 
+function hasCreds(): boolean {
+  try {
+    const home = process.env["HOME"] ?? "/home/appuser";
+    return existsSync(join(home, ".claude", ".credentials.json"));
+  } catch {
+    return false;
+  }
+}
+
 export class ClaudeCodeProvider extends BaseProvider {
   readonly id = "claude-code";
-  readonly name = "Claude Code (local SDK)";
+  readonly name = "Claude Code (host OAuth)";
 
   get baseUrl(): string {
     return "claude-code-sdk://";
   }
 
   get models(): ModelObject[] {
+    if (!hasCreds()) return [];
     const raw = process.env["CLAUDE_CODE_MODELS"]?.trim();
     const variants = raw
       ? raw.split(",").map((s) => s.trim()).filter(Boolean)
@@ -22,13 +34,13 @@ export class ClaudeCodeProvider extends BaseProvider {
       id: `claude-code/${v}`,
       object: "model" as const,
       created: 1700000000,
-      owned_by: "anthropic",
+      owned_by: "anthropic-host",
       provider: "claude-code",
     }));
   }
 
   protected getApiKeys(): string[] {
-    return ["claude-code"];
+    return hasCreds() ? ["claude-code"] : [];
   }
 
   async complete(request: ChatCompletionRequest): Promise<Response> {

@@ -52,8 +52,10 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - OLLAMA_BASE_URL=http://ollama-lb:11434
+      - HOME=/home/appuser
     volumes:
       - freellm_data:/app/packages/api-server/data
+      - ${HOME}/.claude:/home/appuser/.claude
     depends_on:
       - ollama-lb
     networks:
