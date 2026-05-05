@@ -82,6 +82,8 @@ The request goes to the fastest available provider. If that one is rate-limited 
 | **Cloudflare Workers AI** | Llama 3.3 70B fp8-fast, Llama 3.2 3B, Mistral Small 3.1, DeepSeek R1 Distill, Qwen2.5 Coder | ~20 req/min |
 | **GitHub Models** | GPT-4o-mini, GPT-4.1-mini, Llama 3.3 70B, Phi-4, Command R+, Mistral Large | ~15 req/min |
 | **Ollama** | Any local model | Unlimited |
+| **Claude Code** | claude-code/{haiku,sonnet,opus} | Claude subscription |
+| **Claude Code API** | claude-code-api/{haiku,sonnet,opus} | Claude subscription |
 
 Baseline: ~150 req/min combined. With 3 keys per provider: **~450 req/min. All $0.**
 
@@ -339,6 +341,57 @@ With `"high"` and a larger budget (4000+), the model gets room for both thinking
 FreeLLM accepts `response_format: { type: "json_object" }` and `{ type: "json_schema", json_schema: { schema: {...} } }` and forwards them to the upstream provider. Most providers support this natively. For NVIDIA NIM, which uses a proprietary `guided_json` parameter instead, FreeLLM translates the standard format automatically so you don't have to special-case your code per provider.
 
 When a JSON-mode response hits `max_tokens` and the output is almost certainly broken (missing closing brackets, truncated strings), the response carries a `X-FreeLLM-Warning: json-possibly-truncated` header. You'll know the JSON is incomplete before you try to parse it.
+
+### Claude Code providers (local Anthropic Claude)
+
+FreeLLM ships two providers that use your [Claude Code](https://claude.ai/code) subscription — no separate API key needed.
+
+#### `claude-code` — CLI / agentic loop
+
+Spawns the `claude` CLI subprocess. Inherits the full agentic loop: multi-step reasoning, tool planning, and the same output the CLI delivers interactively.
+
+Model IDs: `claude-code/haiku`, `claude-code/sonnet`, `claude-code/opus`
+
+#### `claude-code-api` — Direct OAuth API
+
+Uses the OAuth access token stored by the Claude Code CLI to call `api.anthropic.com/v1/messages` directly. Bypasses the CLI subprocess entirely — you get real per-token streaming, full OpenAI-spec tool use, and accurate token counts.
+
+Model IDs: `claude-code-api/haiku`, `claude-code-api/sonnet`, `claude-code-api/opus`
+
+#### Comparison
+
+| | `claude-code` | `claude-code-api` |
+|---|---|---|
+| Mechanism | CLI subprocess | Direct Anthropic API |
+| Streaming | Accumulated text diff | Per-token SSE |
+| Tool use | CLI agentic loop | Full OpenAI-spec `tool_calls` |
+| Token counts | Not available | Accurate |
+| Requires login | Yes | Yes (same credentials) |
+
+The `claude-code` provider activates automatically when the CLI is present. The `claude-code-api` provider is **opt-in** — it is disabled by default and requires an explicit env var because it uses OAuth credentials outside the intended CLI scope (see ToS notice below):
+
+```env
+STEAL_ANTHROPIC_API_BY_CLAUDE_CODE=yes
+```
+
+Both providers require the one-time login. Run it once after first start:
+
+```bash
+docker exec -it freellm claude
+# Follow the interactive prompts. Credentials persist in the claude_data named volume.
+```
+
+To control which model variants are exposed by both providers, set in `.env`:
+
+```env
+CLAUDE_CODE_MODELS=haiku,sonnet   # default is haiku,sonnet,opus
+```
+
+> **⚠️ Terms of Service notice**
+>
+> The `claude-code-api` provider reads the OAuth access token stored by the Claude Code CLI and uses it to call `api.anthropic.com` directly. This is outside the intended use of the CLI and **may not be permitted by Anthropic's [Terms of Service](https://www.anthropic.com/legal/consumer-terms)**. Use it at your own discretion.
+>
+> The `claude-code` provider operates through the official CLI binary and is the safer choice from a ToS perspective.
 
 ### Securing your gateway
 

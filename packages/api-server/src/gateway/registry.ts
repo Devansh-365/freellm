@@ -7,6 +7,7 @@ import { NimProvider } from "./providers/nim.js";
 import { CloudflareProvider } from "./providers/cloudflare.js";
 import { GitHubModelsProvider } from "./providers/github-models.js";
 import { ClaudeCodeProvider } from "./providers/claude-code.js";
+import { ClaudeCodeApiProvider } from "./providers/claude-code-api.js";
 import type { ProviderAdapter } from "./providers/types.js";
 import type { ModelObject, ProviderStatusInfo, RoutingStrategy, TokenUsageTotals } from "./types.js";
 import { FAST_PRIORITY, SMART_PRIORITY } from "./config.js";
@@ -33,6 +34,7 @@ export class ProviderRegistry {
       new GitHubModelsProvider(),
       new OllamaProvider(),
       new ClaudeCodeProvider(),
+      new ClaudeCodeApiProvider(),
     ];
   }
 

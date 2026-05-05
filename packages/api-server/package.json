@@ -12,7 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^1.0.0",
+    "@anthropic-ai/claude-code": "^2.0.0",
     "better-sqlite3": "^11",
     "cors": "^2",
     "express": "^5",
