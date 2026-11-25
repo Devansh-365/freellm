@@ -5,6 +5,48 @@ All notable changes to FreeLLM are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Dashboard sign-in** ([#2](https://github.com/Devansh-365/freellm/issues/2)).
+  The dashboard now loads in a browser even when the gateway has
+  `FREELLM_API_KEY`, `FREELLM_ADMIN_KEY` or virtual keys configured. When an
+  API call needs a key, the dashboard shows a sign-in screen. Paste
+  `FREELLM_ADMIN_KEY`, or `FREELLM_API_KEY` if no admin key is set. The key is
+  kept in `sessionStorage`, or `localStorage` with "Remember on this device",
+  and a Sign out button clears it. Open gateways behave exactly as before.
+
+### Changed
+
+- Auth and the per-identifier rate limit now apply only to `/v1/*` and
+  `/api/*`. Dashboard static files and the SPA fallback are public. Health
+  checks stay unauthenticated.
+- Refreshed provider catalogs for models that providers have shut down:
+  - Groq: `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`,
+    `llama-4-scout-17b-16e-instruct` and `qwen3-32b` replaced by
+    `openai/gpt-oss-120b` (new default), `openai/gpt-oss-20b` and
+    `qwen/qwen3.8-27b` (vision).
+  - Cerebras: default is now `gpt-oss-120b`; `llama3.1-8b` and
+    `qwen-3-235b-a22b-instruct-2507` replaced by `qwen-3.8-27b`.
+  - Mistral: removed the retired `open-mistral-nemo`.
+  - Cloudflare: `@cf/meta/llama-3.1-8b-instruct` replaced by its `-fast`
+    variant.
+- Upgraded `zod` to v4 and pinned patched versions of `body-parser`, `qs`,
+  `proxy-addr` and `compression`. `pnpm audit` is clean again.
+
+### Fixed
+
+- **Meta-models now fail over when a provider rejects the model or key**
+  ([#4](https://github.com/Devansh-365/freellm/issues/4)). Previously any
+  upstream 400/401/403/404 was returned to the caller straight away, so a
+  `free-fast` request failed with Groq's "model does not exist" error instead
+  of moving on to Gemini. Now 401, 403, 404, and a 400 whose body says the
+  model is missing or decommissioned exclude that provider and route to the
+  next one. Other 400s are still returned as-is, and strict mode still never
+  falls back. If every provider fails this way, the last upstream message is
+  returned.
+
 ## [1.7.0] - 2026-05-17
 
 Vision/multimodal routing. FreeLLM can now route requests that contain

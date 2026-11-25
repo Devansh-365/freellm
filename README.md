@@ -75,10 +75,10 @@ The request goes to the fastest available provider. If that one is rate-limited 
 
 | Provider | Models | Free tier (per key) |
 |----------|--------|---------------------|
-| **Groq** | Llama 3.3 70B, Llama 3.1 8B, Llama 4 Scout, Qwen3 32B | ~30 req/min |
+| **Groq** | GPT-OSS 120B, GPT-OSS 20B, Qwen3.8 27B (preview) | ~30 req/min |
 | **Gemini** | Gemini 2.5 Flash, 2.5 Pro | ~15 req/min |
-| **Mistral** | Mistral Small, Medium, Nemo | ~5 req/min |
-| **Cerebras** | Llama 3.1 8B, Qwen3 235B, GPT-OSS 120B | ~30 req/min |
+| **Mistral** | Mistral Small, Medium | ~5 req/min |
+| **Cerebras** | GPT-OSS 120B, Qwen 3.8 27B | ~30 req/min |
 | **NVIDIA NIM** | Llama 3.3 70B, Llama 3.1 405B, Nemotron 70B, DeepSeek R1 | ~40 req/min |
 | **Cloudflare Workers AI** | Llama 3.3 70B fp8-fast, Llama 3.2 3B, Mistral Small 3.1, DeepSeek R1 Distill, Qwen2.5 Coder | ~20 req/min |
 | **GitHub Models** | GPT-4o-mini, GPT-4.1-mini, Llama 3.3 70B, Phi-4, Command R+, Mistral Large | ~15 req/min |
@@ -149,7 +149,7 @@ Don't pick a provider. Pick a strategy.
 | `free-fast` | Lowest-latency provider first (Groq, Cerebras, Gemini, NIM) | You're building a chatbot or real-time UI |
 | `free-smart` | Most capable provider first (Gemini, NIM, Groq, Mistral) | You need stronger reasoning or longer context |
 
-Need a specific model? Target it directly: `groq/llama-3.3-70b-versatile`, `gemini/gemini-2.5-flash`, `nim/deepseek-ai/deepseek-r1`.
+Need a specific model? Target it directly: `groq/openai/gpt-oss-120b`, `gemini/gemini-2.5-flash`, `nim/deepseek-ai/deepseek-r1`.
 
 ### Multi-key rotation (stack your free tiers)
 
@@ -190,7 +190,7 @@ Every response carries headers that tell you exactly how FreeLLM handled the req
 
 ```
 X-FreeLLM-Provider: groq
-X-FreeLLM-Model: groq/llama-3.3-70b-versatile
+X-FreeLLM-Model: groq/openai/gpt-oss-120b
 X-FreeLLM-Requested-Model: free-fast
 X-FreeLLM-Cached: false
 X-FreeLLM-Route-Reason: meta
@@ -360,13 +360,13 @@ Vision-capable models across providers:
 
 | Provider | Vision models |
 |----------|--------------|
-| **Groq** | Llama 4 Scout 17B |
+| **Groq** | Qwen3.8 27B (preview) |
 | **Gemini** | Gemini 2.5 Flash, Gemini 2.5 Pro |
 | **GitHub Models** | GPT-4o-mini, GPT-4.1-mini, Llama 3.2 11B Vision |
 | **Cloudflare** | Mistral Small 3.1 |
 | **Ollama** | Auto-detected from model name (llava, moondream, bakllava, etc.) |
 
-If you request a specific model that doesn't support vision (e.g. `groq/llama-3.3-70b-versatile`) but include an image, FreeLLM returns a clear 400 error up front — no provider call, no wasted quota.
+If you request a specific model that doesn't support vision (e.g. `groq/openai/gpt-oss-120b`) but include an image, FreeLLM returns a clear 400 error up front — no provider call, no wasted quota.
 
 Vision responses are never cached (image payloads are large, near-zero repeat rate, and the cache would grow unbounded).
 
@@ -424,6 +424,8 @@ Request-side headers you can opt into:
 ## Dashboard
 
 A built-in web UI for monitoring your gateway in real time. Provider health, cache hit rate, per-provider token usage, multi-key status, live request log, routing controls, and circuit breaker management.
+
+The dashboard page itself always loads, even when the gateway requires a key. If `FREELLM_API_KEY`, `FREELLM_ADMIN_KEY`, or virtual keys are configured, the dashboard shows a sign-in screen. Enter your `FREELLM_ADMIN_KEY`, or `FREELLM_API_KEY` if you haven't set an admin key. The key is kept for the browser tab unless you tick "Remember on this device", and "Sign out" in the header clears it.
 
 ![Models Page](docs/screenshots/models.png)
 
