@@ -19,13 +19,6 @@ export class MistralProvider extends BaseProvider {
       provider: "mistral",
     },
     {
-      id: "mistral/open-mistral-nemo",
-      object: "model",
-      created: 1700000000,
-      owned_by: "mistral",
-      provider: "mistral",
-    },
-    {
       id: "mistral/mistral-medium-latest",
       object: "model",
       created: 1700000000,

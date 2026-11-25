@@ -35,7 +35,7 @@ async function startFakeUpstream(): Promise<FakeUpstream> {
             id: "chatcmpl-schema-1",
             object: "chat.completion",
             created: Math.floor(Date.now() / 1000),
-            model: "llama-3.3-70b-versatile",
+            model: "openai/gpt-oss-120b",
             choices: [
               {
                 index: 0,
@@ -80,7 +80,7 @@ const TEST_SCHEMA = {
 };
 
 const JSON_SCHEMA_BODY = {
-  model: "groq/llama-3.3-70b-versatile",
+  model: "groq/openai/gpt-oss-120b",
   messages: [{ role: "user", content: "give me a person" }],
   response_format: {
     type: "json_schema",
@@ -185,7 +185,7 @@ describe("JSON schema response validation header", () => {
       .post("/v1/chat/completions")
       .set("x-freellm-strict", "true")
       .send({
-        model: "groq/llama-3.3-70b-versatile",
+        model: "groq/openai/gpt-oss-120b",
         messages: [{ role: "user", content: "give me json" }],
         response_format: { type: "json_object" },
       });

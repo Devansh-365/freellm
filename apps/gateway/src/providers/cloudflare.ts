@@ -58,7 +58,9 @@ export class CloudflareProvider extends BaseProvider {
       provider: "cloudflare",
     },
     {
-      id: "cloudflare/@cf/meta/llama-3.1-8b-instruct",
+      // The non-fast llama-3.1-8b-instruct was deprecated on 2026-05-30;
+      // the -fast variant stays active.
+      id: "cloudflare/@cf/meta/llama-3.1-8b-instruct-fast",
       object: "model",
       created: 1700000000,
       owned_by: "meta",

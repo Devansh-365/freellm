@@ -29,8 +29,8 @@ const TEST_KEY_ID = "sk-freellm-streamtest1";
 
 // SSE stream that includes a usage chunk on the final delta.
 const STREAM_WITH_USAGE =
-  'data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"llama-3.3-70b-versatile","choices":[{"index":0,"delta":{"role":"assistant","content":"hello"},"finish_reason":null}]}\n\n' +
-  'data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"llama-3.3-70b-versatile","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}\n\n' +
+  'data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"openai/gpt-oss-120b","choices":[{"index":0,"delta":{"role":"assistant","content":"hello"},"finish_reason":null}]}\n\n' +
+  'data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"openai/gpt-oss-120b","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}\n\n' +
   "data: [DONE]\n\n";
 
 let upstreamServer: Server;
@@ -108,7 +108,7 @@ async function streamRequest(authHeader?: string): Promise<void> {
     .set("content-type", "application/json")
     .set("authorization", authHeader ?? "")
     .send({
-      model: "groq/llama-3.3-70b-versatile",
+      model: "groq/openai/gpt-oss-120b",
       messages: [{ role: "user", content: "hi" }],
       stream: true,
     })

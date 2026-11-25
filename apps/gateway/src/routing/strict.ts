@@ -36,7 +36,7 @@ export function assertStrictModeAllowed(model: string, strict: boolean): void {
   if (!strict) return;
   if (META_MODELS.has(model)) {
     throw new StrictModeError(
-      `Strict mode forbids meta-model "${model}". Specify a concrete model like "groq/llama-3.3-70b-versatile" or disable strict mode.`,
+      `Strict mode forbids meta-model "${model}". Specify a concrete model like "groq/openai/gpt-oss-120b" or disable strict mode.`,
       model,
     );
   }

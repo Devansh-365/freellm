@@ -11,26 +11,21 @@ export class CerebrasProvider extends BaseProvider {
     return process.env.CEREBRAS_BASE_URL ?? "https://api.cerebras.ai/v1";
   }
 
+  // llama3.1-8b and qwen-3-235b-a22b-instruct-2507 were deprecated on
+  // 2026-05-27 (inference-docs.cerebras.ai/support/deprecation).
   readonly models: ModelObject[] = [
-    {
-      id: "cerebras/llama3.1-8b",
-      object: "model",
-      created: 1700000000,
-      owned_by: "meta",
-      provider: "cerebras",
-    },
-    {
-      id: "cerebras/qwen-3-235b-a22b-instruct-2507",
-      object: "model",
-      created: 1700000000,
-      owned_by: "alibaba",
-      provider: "cerebras",
-    },
     {
       id: "cerebras/gpt-oss-120b",
       object: "model",
       created: 1700000000,
       owned_by: "openai",
+      provider: "cerebras",
+    },
+    {
+      id: "cerebras/qwen-3.8-27b",
+      object: "model",
+      created: 1700000000,
+      owned_by: "alibaba",
       provider: "cerebras",
     },
   ];

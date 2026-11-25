@@ -61,7 +61,7 @@ body:
     id: model
     attributes:
       label: Model used
-      description: The exact model string you sent (e.g. `free-fast`, `groq/llama-3.3-70b-versatile`, `nim/meta/llama-3.3-70b-instruct`)
+      description: The exact model string you sent (e.g. `free-fast`, `groq/openai/gpt-oss-120b`, `nim/meta/llama-3.3-70b-instruct`)
       placeholder: free-fast
     validations:
       required: true

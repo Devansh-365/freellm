@@ -221,10 +221,10 @@ describe("ResponseCache — vision bypass", () => {
 describe("GatewayRouter — fail-fast for non-vision model", () => {
   it("throws model_not_supported when a text-only model receives image content", async () => {
     const textModel: ModelObject = {
-      id: "groq/llama-3.3-70b-versatile",
+      id: "groq/openai/gpt-oss-120b",
       object: "model",
       created: 0,
-      owned_by: "meta",
+      owned_by: "openai",
       provider: "groq",
       // supportsVision intentionally absent
     };
@@ -232,7 +232,7 @@ describe("GatewayRouter — fail-fast for non-vision model", () => {
     const registry = makeRegistry([provider]);
     const router = new GatewayRouter(registry);
 
-    const req = visionRequest("groq/llama-3.3-70b-versatile");
+    const req = visionRequest("groq/openai/gpt-oss-120b");
     await expect(router.complete(req)).rejects.toMatchObject({
       message: expect.stringContaining("does not support vision"),
     });
@@ -242,10 +242,10 @@ describe("GatewayRouter — fail-fast for non-vision model", () => {
 
   it("does NOT throw for a vision-capable model with image content", async () => {
     const visionModel: ModelObject = {
-      id: "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+      id: "groq/qwen/qwen3.8-27b",
       object: "model",
       created: 0,
-      owned_by: "meta",
+      owned_by: "alibaba",
       provider: "groq",
       supportsVision: true,
     };
@@ -253,7 +253,7 @@ describe("GatewayRouter — fail-fast for non-vision model", () => {
     const registry = makeRegistry([provider]);
     const router = new GatewayRouter(registry);
 
-    const req = visionRequest("groq/meta-llama/llama-4-scout-17b-16e-instruct");
+    const req = visionRequest("groq/qwen/qwen3.8-27b");
     await expect(router.complete(req)).resolves.toBeDefined();
   });
 });

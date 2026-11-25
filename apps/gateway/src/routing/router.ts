@@ -11,6 +11,7 @@ import { type PrivacyRequest, providerSatisfiesPrivacy } from "./privacy.js";
 import type { ProviderRegistry } from "./registry.js";
 import { parseRetryAfter } from "./retry-after.js";
 import { assertStrictModeAllowed } from "./strict.js";
+import { isProviderScopedClientError } from "./upstream-errors.js";
 
 export type RouteReason = "direct" | "meta" | "cache" | "failover";
 
@@ -199,6 +200,11 @@ export class GatewayRouter {
     const excluded = new Set<string>();
     const attempted: string[] = [];
     let failoverCount = 0;
+    // Set when the most recent failure was a provider-scoped 4xx that we
+    // failed over past; cleared by any other kind of failure. If every
+    // candidate ends up excluded, this upstream error is surfaced instead of
+    // a generic exhaustion error.
+    let lastClientError: ProviderClientError | undefined;
     const deadline = Date.now() + ROUTE_TIMEOUT_MS;
 
     while (true) {
@@ -218,6 +224,10 @@ export class GatewayRouter {
       );
 
       if (!provider) {
+        // The last candidate rejected the model or credentials. Surface
+        // its upstream error so a direct request like `groq/<dead-model>`
+        // still returns the provider's own message.
+        if (lastClientError) throw lastClientError;
         throw new AllProvidersExhaustedError(
           `All providers exhausted for model: ${request.model}`,
           [...excluded],
@@ -249,13 +259,32 @@ export class GatewayRouter {
           if (strict) {
             throw new ProviderClientError(provider.id, response.status, response);
           }
+          lastClientError = undefined;
           failoverCount++;
           continue;
         }
 
         if (NON_RETRIABLE_STATUSES.has(response.status)) {
-          throw new ProviderClientError(provider.id, response.status, response);
+          const clientError = new ProviderClientError(provider.id, response.status, response);
+          // Strict mode never falls back. Request-scoped errors (malformed
+          // body, bad params) would fail on every provider, so surface them.
+          if (strict || !(await isProviderScopedClientError(response))) {
+            throw clientError;
+          }
+          // Provider-scoped: bad key, no access, or the model is gone from
+          // this provider. Another provider can still serve the request.
+          logger.warn(
+            { provider: provider.id, model: resolvedModel, status: response.status },
+            "provider rejected the model or credentials, failing over",
+          );
+          provider.onError();
+          excluded.add(provider.id);
+          lastClientError = clientError;
+          failoverCount++;
+          continue;
         }
+
+        lastClientError = undefined;
 
         if (response.status >= 500) {
           // Some providers send Retry-After on 5xx too. Treat it as a cooldown
@@ -287,6 +316,7 @@ export class GatewayRouter {
         return { response, provider, resolvedModel, attempted, failoverCount };
       } catch (err) {
         if (err instanceof ProviderClientError) throw err;
+        lastClientError = undefined;
         provider.onError();
         excluded.add(provider.id);
         if (strict) throw err;
@@ -454,7 +484,11 @@ export class AllProvidersExhaustedError extends Error {
   }
 }
 
-/** Thrown when a provider returns a non-retriable 4xx (400/401/403/404). */
+/**
+ * Thrown when a provider returns a 4xx the router will not fail over past:
+ * a request-scoped 400/401/403/404, any 4xx/429/5xx in strict mode, or the
+ * last provider-scoped 4xx once every candidate has been excluded.
+ */
 export class ProviderClientError extends Error {
   constructor(
     public readonly providerId: string,

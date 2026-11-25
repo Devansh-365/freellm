@@ -396,7 +396,7 @@ const canonicalURL = "https://freellms.vercel.app/alternatives/litellm/";
           <pre><code><span class="token-keyword">import</span> <span class="token-var">litellm</span>
 
 <span class="token-var">response</span> = <span class="token-var">litellm</span>.<span class="token-var">completion</span>(
-    <span class="token-var">model</span>=<span class="token-string">"groq/llama3-70b-8192"</span>,
+    <span class="token-var">model</span>=<span class="token-string">"groq/openai/gpt-oss-120b"</span>,
     <span class="token-var">messages</span>=[&lbrace;<span class="token-string">"role"</span>: <span class="token-string">"user"</span>, <span class="token-string">"content"</span>: <span class="token-string">"Hello"</span>&rbrace;]
 )</code></pre>
         </div>
@@ -411,7 +411,7 @@ const canonicalURL = "https://freellms.vercel.app/alternatives/litellm/";
 )
 
 <span class="token-var">response</span> = <span class="token-var">client</span>.<span class="token-var">chat</span>.<span class="token-var">completions</span>.<span class="token-var">create</span>(
-    <span class="token-var">model</span>=<span class="token-string">"llama-3.3-70b-versatile"</span>,
+    <span class="token-var">model</span>=<span class="token-string">"groq/openai/gpt-oss-120b"</span>,
     <span class="token-var">messages</span>=[&lbrace;<span class="token-string">"role"</span>: <span class="token-string">"user"</span>, <span class="token-string">"content"</span>: <span class="token-string">"Hello"</span>&rbrace;]
 )</code></pre>
         </div>

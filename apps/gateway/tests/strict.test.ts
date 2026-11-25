@@ -30,11 +30,11 @@ describe("assertStrictModeAllowed", () => {
   it("is a no-op when strict is disabled", () => {
     expect(() => assertStrictModeAllowed("free", false)).not.toThrow();
     expect(() => assertStrictModeAllowed("free-fast", false)).not.toThrow();
-    expect(() => assertStrictModeAllowed("groq/llama-3.3-70b-versatile", false)).not.toThrow();
+    expect(() => assertStrictModeAllowed("groq/openai/gpt-oss-120b", false)).not.toThrow();
   });
 
   it("allows concrete models in strict mode", () => {
-    expect(() => assertStrictModeAllowed("groq/llama-3.3-70b-versatile", true)).not.toThrow();
+    expect(() => assertStrictModeAllowed("groq/openai/gpt-oss-120b", true)).not.toThrow();
     expect(() => assertStrictModeAllowed("gemini/gemini-2.5-flash", true)).not.toThrow();
   });
 
