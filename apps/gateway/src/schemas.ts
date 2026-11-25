@@ -12,7 +12,7 @@ const chatToolSchema = z.object({
   function: z.object({
     name: z.string().min(1),
     description: z.string().optional(),
-    parameters: z.record(z.any()).optional(),
+    parameters: z.record(z.string(), z.any()).optional(),
     strict: z.boolean().optional(),
   }),
 });
@@ -74,7 +74,7 @@ export const chatCompletionRequestSchema = z
     response_format: z
       .object({
         type: z.enum(["text", "json_object", "json_schema"]),
-        json_schema: z.record(z.any()).optional(),
+        json_schema: z.record(z.string(), z.any()).optional(),
       })
       .optional(),
     // Reasoning budget knob for Gemini 2.5 OpenAI-compat and OpenAI o-series.
