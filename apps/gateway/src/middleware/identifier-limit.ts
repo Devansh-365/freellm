@@ -39,8 +39,10 @@ export function identifierLimiterSize(): number {
 }
 
 export function identifierLimit(req: Request, res: Response, next: NextFunction): void {
-  // Health checks bypass every quota.
-  if (req.path === "/healthz" || req.path === "/api/healthz") {
+  // Health checks bypass every quota. baseUrl + path is the full path
+  // even when this middleware is mounted under a prefix.
+  const fullPath = req.baseUrl + req.path;
+  if (fullPath === "/healthz" || fullPath === "/api/healthz") {
     next();
     return;
   }

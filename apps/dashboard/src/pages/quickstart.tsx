@@ -68,7 +68,7 @@ const codeByTab: Record<TabId, string> = {
   python: `from openai import OpenAI
 
 client = OpenAI(
-    api_key="not-needed",     # Any string works
+    api_key="not-needed",     # Your key, if the gateway requires one
     base_url="${BASE_URL}",
 )
 
@@ -213,8 +213,9 @@ export default function Quickstart() {
 
       <div className="p-4 rounded-xl border border-white/[0.04] bg-white/[0.02] text-sm text-muted-foreground font-mono">
         <span className="text-foreground font-medium">Note: </span>
-        FreeLLM ignores the Authorization header. You can pass any string or leave it empty.
-        Provider API keys are configured server-side via environment variables.
+        The Authorization header only matters when the gateway has FREELLM_API_KEY or virtual keys
+        configured. Then pass one of those keys as the API key. Otherwise any string works. Provider
+        API keys are configured server-side via environment variables.
       </div>
     </div>
   );

@@ -70,13 +70,20 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 // Per-client rate limiting (by IP)
 app.use(clientRateLimit);
 
+// Auth and the per-identifier limit guard the API only. The dashboard's
+// static assets and SPA shell below hold no secrets, so a browser can load
+// them and then sign in with a key. Every API route lives under one of
+// these prefixes; /healthz sits outside them and /api/healthz is exempted
+// inside both middlewares, so Docker HEALTHCHECK keeps working.
+const API_PREFIXES = ["/v1", "/api"];
+
 // API key auth: only enforced when FREELLM_API_KEY is set OR virtual keys
 // are loaded. Auth populates req.virtualKey for chat route cap enforcement.
-app.use(auth);
+app.use(API_PREFIXES, auth);
 
 // Per-identifier rate limit runs AFTER auth so it only sees authenticated
 // traffic. Health checks are exempt internally.
-app.use(identifierLimit);
+app.use(API_PREFIXES, identifierLimit);
 
 // Mount at /api (used by dashboard via proxy) and also at root (direct SDK access: base_url="/v1")
 app.use("/api", router);
@@ -84,11 +91,11 @@ app.use("/", router);
 
 app.use(errorHandler);
 
-// In production, serve the dashboard as static files from the same process
-const dashboardDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../dashboard/dist/public",
-);
+// In production, serve the dashboard as static files from the same process.
+// FREELLM_DASHBOARD_DIR overrides the location (used by tests).
+const dashboardDir =
+  process.env.FREELLM_DASHBOARD_DIR ??
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dashboard/dist/public");
 app.use(express.static(dashboardDir));
 // SPA fallback: serve index.html for any unmatched route (client-side routing)
 app.use((_req, res, next) => {

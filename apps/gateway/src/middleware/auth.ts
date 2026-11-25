@@ -53,7 +53,9 @@ export function auth(req: Request, _res: Response, next: NextFunction): void {
   const hasVirtualKeys = virtualKeyStore.size() > 0;
 
   // Health check is always unauthenticated so Docker HEALTHCHECK works.
-  if (req.path === "/healthz" || req.path === "/api/healthz") {
+  // baseUrl + path is the full path even when mounted under a prefix.
+  const fullPath = req.baseUrl + req.path;
+  if (fullPath === "/healthz" || fullPath === "/api/healthz") {
     next();
     return;
   }

@@ -1,6 +1,9 @@
 import { getHealthCheckQueryKey, useHealthCheck } from "@/api/hooks";
+import { Button } from "@/components/ui/button";
+import { signOut, useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { Activity, Box, Terminal } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Activity, Box, LogOut, Terminal } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { FreeLLMLogo } from "./logo";
 
@@ -12,9 +15,18 @@ const navItems = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const queryClient = useQueryClient();
+  const { key: signedInKey } = useAuth();
   const { data: health, isLoading } = useHealthCheck({
     query: { refetchInterval: 10000, queryKey: getHealthCheckQueryKey() },
   });
+
+  // Only shown when a key is stored. Clearing the cache drops data fetched
+  // with the old key; the app then remounts and asks for a key if needed.
+  const handleSignOut = () => {
+    queryClient.clear();
+    signOut();
+  };
 
   const gatewayDot = isLoading
     ? "bg-muted"
@@ -62,12 +74,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.04] text-xs font-mono">
-            <div className={cn("w-2 h-2 rounded-full shrink-0 transition-colors", gatewayDot)} />
-            <span className="text-muted-foreground">Gateway</span>
-            <span className="uppercase text-[10px] tracking-widest text-foreground/70">
-              {isLoading ? "..." : health?.status || "UNK"}
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.04] text-xs font-mono">
+              <div className={cn("w-2 h-2 rounded-full shrink-0 transition-colors", gatewayDot)} />
+              <span className="text-muted-foreground">Gateway</span>
+              <span className="uppercase text-[10px] tracking-widest text-foreground/70">
+                {isLoading ? "..." : health?.status || "UNK"}
+              </span>
+            </div>
+            {signedInKey && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="h-8 gap-1.5 rounded-lg px-3 text-xs font-mono text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign out
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -78,11 +103,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <FreeLLMLogo size={24} />
           <span className="font-mono font-bold tracking-tight text-sm">FreeLLM</span>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.04] text-xs font-mono">
-          <div className={cn("w-1.5 h-1.5 rounded-full", gatewayDot)} />
-          <span className="uppercase tracking-widest text-[10px] text-foreground/70">
-            {isLoading ? "..." : health?.status || "UNK"}
-          </span>
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.04] text-xs font-mono">
+            <div className={cn("w-1.5 h-1.5 rounded-full", gatewayDot)} />
+            <span className="uppercase tracking-widest text-[10px] text-foreground/70">
+              {isLoading ? "..." : health?.status || "UNK"}
+            </span>
+          </div>
+          {signedInKey && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSignOut}
+              aria-label="Sign out"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
       </header>
 

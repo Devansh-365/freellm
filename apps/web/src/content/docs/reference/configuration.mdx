@@ -47,7 +47,9 @@ FREELLM_ADMIN_KEY=           # separate key for status mutations (reset, routing
 ALLOWED_ORIGINS=             # comma-separated CORS origins
 ```
 
-When `FREELLM_API_KEY` is empty, all requests pass through (good for local dev). When set, every non-health request must include `Authorization: Bearer <key>`.
+When `FREELLM_API_KEY` is empty, all requests pass through (good for local dev). When set, every API request (`/v1/*` and `/api/*`, except health checks) must include `Authorization: Bearer <key>`.
+
+The dashboard page itself is always served without a key. When the gateway requires one, the dashboard shows a sign-in screen. Enter your `FREELLM_ADMIN_KEY`, or `FREELLM_API_KEY` if you haven't set an admin key. The key is kept for the browser tab unless you tick "Remember on this device", and "Sign out" in the header clears it.
 
 ## Logging
 
